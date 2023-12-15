@@ -12,11 +12,27 @@ from .serializers import PostSerializer, CommentSerializer
 from .models import Comment, Post, Like
 from .permissions import IsOwnerOrReadOnly
 from rest_framework.response import Response
+from django.views.generic import View
+from rest_framework.pagination import PageNumberPagination
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.filters import SearchFilter
 
-class PostListView(generics.ListAPIView):
-    queryset = Post.objects.order_by('-created_at')  # 최신순으로 정렬
+class CustomPagination(PageNumberPagination):
+    page_size = 8
+    page_size_query_param = 'page_size'
+    max_page_size = 1000
+
+class PostListView(generics.ListCreateAPIView):
+    queryset = Post.objects.order_by('-created_at')
     serializer_class = PostSerializer
-    permission_classes = [permissions.IsAuthenticated]  # 인증된 사용자만 접근 가능
+    permission_classes = [permissions.IsAuthenticated]
+    pagination_class = CustomPagination
+    filter_backends = [DjangoFilterBackend, SearchFilter]
+    filterset_fields = ['title', 'author__username']
+    search_fields = ['title', 'caption', 'author__username']
+
+    def perform_create(self, serializer):
+        serializer.save(author=self.request.user)
 
 
 class PostDetailView(generics.RetrieveAPIView):
